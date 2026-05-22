@@ -21,9 +21,33 @@
     h1 span { color:var(--accent); }
     .sub { font-family:'DM Mono',monospace; font-size:0.85rem; color:var(--muted); margin-bottom:2rem; }
     .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1.25rem; }
-    textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem; line-height:1.7; padding:1rem; resize:vertical; min-height:220px; outline:none; transition:border-color 0.2s; }
+
+    .tabs { display:flex; gap:6px; margin-bottom:1.25rem; }
+    .tab { font-family:'DM Mono',monospace; font-size:0.75rem; letter-spacing:0.06em; text-transform:uppercase; padding:6px 16px; border-radius:99px; border:1px solid var(--border); color:var(--muted); cursor:pointer; transition:all 0.15s; background:transparent; }
+    .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem; line-height:1.7; padding:1rem; resize:vertical; min-height:200px; outline:none; transition:border-color 0.2s; }
     textarea:focus { border-color:var(--accent); }
     textarea::placeholder { color:var(--muted); }
+
+    .drop-zone { border:1.5px dashed rgba(124,106,247,0.35); border-radius:12px; padding:2.5rem 1rem; text-align:center; cursor:pointer; transition:all 0.2s; background:rgba(124,106,247,0.04); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color:var(--accent); background:rgba(124,106,247,0.09); }
+    .drop-icon { font-size:2rem; margin-bottom:0.75rem; opacity:0.6; }
+    .drop-title { font-size:0.95rem; font-weight:600; margin-bottom:0.3rem; }
+    .drop-hint { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); }
+    input[type=file] { display:none; }
+
+    .file-selected { display:none; background:rgba(93,202,165,0.08); border:1px solid rgba(93,202,165,0.25); border-radius:10px; padding:0.85rem 1rem; margin-top:1rem; align-items:center; justify-content:space-between; gap:1rem; }
+    .file-selected.visible { display:flex; }
+    .file-info { font-family:'DM Mono',monospace; font-size:0.8rem; }
+    .file-name { color:var(--safe); font-weight:500; }
+    .file-meta { color:var(--muted); font-size:0.72rem; margin-top:2px; }
+    .file-clear { background:transparent; border:1px solid var(--border); color:var(--muted); font-size:0.75rem; padding:4px 10px; border-radius:6px; cursor:pointer; font-family:'DM Mono',monospace; }
+    .file-clear:hover { border-color:var(--anger); color:var(--anger); opacity:1; }
+
     .row { display:flex; align-items:center; justify-content:space-between; margin-top:1rem; gap:1rem; flex-wrap:wrap; }
     .hint { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); }
     button { background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:'Syne',sans-serif; font-weight:600; font-size:0.88rem; padding:0.55rem 1.4rem; cursor:pointer; transition:opacity 0.2s, transform 0.1s; }
@@ -32,7 +56,7 @@
     button:disabled { opacity:0.35; cursor:not-allowed; }
     .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
     .btn-outline:hover { border-color:var(--accent); color:var(--accent); opacity:1; }
-    .error { font-family:'DM Mono',monospace; font-size:0.8rem; color:var(--anger); margin-top:0.5rem; display:none; }
+    .error { font-family:'DM Mono',monospace; font-size:0.8rem; color:var(--anger); margin-top:0.75rem; display:none; }
 
     .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:1.25rem; }
     .stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
@@ -59,7 +83,6 @@
 
     .spinner { display:none; width:16px; height:16px; border:2px solid rgba(255,255,255,0.15); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-
     .section-head { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.75rem; }
   </style>
 </head>
@@ -69,93 +92,172 @@
   <p class="sub">bulk emotion + aggression analysis · j-hartmann/emotion-english-distilroberta-base</p>
 
   <div class="card">
-    <div class="section-head">input — paste json array of posts</div>
-    <textarea id="inputJson" placeholder='[
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('paste')">Paste JSON</button>
+      <button class="tab" onclick="switchTab('upload')">Upload File</button>
+    </div>
+
+    <div class="tab-panel active" id="panel-paste">
+      <textarea id="inputJson" placeholder='[
   {"id": "1", "comment": "I love this product!"},
-  {"id": "2", "comment": "This is absolutely terrible"},
-  {"id": "3", "comment": "Okay I guess, nothing special"}
+  {"id": "2", "comment": "This is terrible, I want a refund"}
 ]'></textarea>
-    <div class="row">
-      <span class="hint">ctrl+enter to run &nbsp;·&nbsp; array of {id, comment}</span>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <button class="btn-outline" onclick="loadExample()">Load example</button>
-        <div class="spinner" id="spinner"></div>
-        <button id="runBtn" onclick="runAnalysis()">Analyze</button>
+      <div class="row">
+        <span class="hint">ctrl+enter to run</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn-outline" onclick="loadExample()">Load example</button>
+          <div class="spinner" id="spinner-paste"></div>
+          <button id="runBtn-paste" onclick="runFromPaste()">Analyze</button>
+        </div>
       </div>
     </div>
+
+    <div class="tab-panel" id="panel-upload">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Drop your .json file here</div>
+        <div class="drop-hint">or click to browse &nbsp;·&nbsp; expects array of {id, comment}</div>
+      </div>
+      <input type="file" id="fileInput" accept=".json,application/json" onchange="onFileSelect(event)" />
+
+      <div class="file-selected" id="fileSelected">
+        <div class="file-info">
+          <div class="file-name" id="fileName"></div>
+          <div class="file-meta" id="fileMeta"></div>
+        </div>
+        <button class="file-clear" onclick="clearFile()">Remove</button>
+      </div>
+
+      <div class="row">
+        <span class="hint">json file · array of {id, comment}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="spinner" id="spinner-upload"></div>
+          <button id="runBtn-upload" onclick="runFromFile()" disabled>Analyze</button>
+        </div>
+      </div>
+    </div>
+
     <div class="error" id="errorMsg"></div>
   </div>
 
   <div class="results-section" id="resultsSection">
-
     <div class="stats-grid" id="statsGrid"></div>
-
     <div class="charts-row">
       <div class="chart-box">
         <div class="chart-title">emotion distribution</div>
         <div style="position:relative;width:100%;height:220px;">
-          <canvas id="emotionChart" role="img" aria-label="Donut chart of emotion distribution across analyzed comments"></canvas>
+          <canvas id="emotionChart" role="img" aria-label="Donut chart of emotion distribution"></canvas>
         </div>
         <div id="emotionLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;"></div>
       </div>
       <div class="chart-box">
         <div class="chart-title">aggression score per comment</div>
         <div id="aggrChartWrap" style="position:relative;width:100%;">
-          <canvas id="aggrChart" role="img" aria-label="Horizontal bar chart showing aggression score for each comment"></canvas>
+          <canvas id="aggrChart" role="img" aria-label="Horizontal bar chart of aggression scores"></canvas>
         </div>
       </div>
     </div>
-
     <div class="card">
       <div class="section-head">per-comment results</div>
       <div style="overflow-x:auto;">
-        <table id="resultsTable">
-          <thead>
-            <tr>
-              <th>ID</th><th>Comment</th><th>Emotion</th><th>Confidence</th><th>Aggression score</th><th>Flag</th>
-            </tr>
-          </thead>
+        <table>
+          <thead><tr><th>ID</th><th>Comment</th><th>Emotion</th><th>Confidence</th><th>Aggression</th><th>Flag</th></tr></thead>
           <tbody id="resultsBody"></tbody>
         </table>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
-const COLORS = {
-  anger:'#f05a5a', disgust:'#7ec87e', fear:'#b07ef5',
-  joy:'#f5c842', neutral:'#8899aa', sadness:'#5ab4f0', surprise:'#f09f5a'
-};
-const EMOJI = { anger:'😡',disgust:'🤢',fear:'😨',joy:'😄',neutral:'😐',sadness:'😢',surprise:'😲' };
-let emotionChartInst = null;
-let aggrChartInst = null;
+const COLORS = { anger:'#f05a5a',disgust:'#7ec87e',fear:'#b07ef5',joy:'#f5c842',neutral:'#8899aa',sadness:'#5ab4f0',surprise:'#f09f5a' };
+const EMOJI  = { anger:'😡',disgust:'🤢',fear:'😨',joy:'😄',neutral:'😐',sadness:'😢',surprise:'😲' };
+let emotionChartInst = null, aggrChartInst = null;
+let uploadedPosts = null;
 
 const EXAMPLE = [
-  {"id":"1","comment":"I absolutely love this, it made my day!"},
-  {"id":"2","comment":"This is disgusting, I want a refund immediately"},
-  {"id":"3","comment":"I'm scared it might stop working suddenly"},
-  {"id":"4","comment":"The package arrived. It is on the table."},
-  {"id":"5","comment":"Wow, didn't expect that feature at all!"},
-  {"id":"6","comment":"I hate how they handled this, it's infuriating"},
-  {"id":"7","comment":"Feeling a bit sad about the discontinuation"},
-  {"id":"8","comment":"Best purchase I made this year, truly joyful"}
+  {"id":"1","comment":"I absolutely love this product, it changed my life!"},
+  {"id":"2","comment":"This is garbage, I want my money back right now!"},
+  {"id":"3","comment":"The item was delivered on time."},
+  {"id":"4","comment":"I'm really scared this might stop working soon."},
+  {"id":"5","comment":"Wow, I did NOT expect that feature at all!"},
+  {"id":"6","comment":"I hate this so much, it makes me furious every time."},
+  {"id":"7","comment":"Feeling a little sad about the discontinuation."},
+  {"id":"8","comment":"This disgusts me, absolute trash company."}
 ];
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='paste')||(i===1&&tab==='upload')));
+  document.getElementById('panel-paste').classList.toggle('active', tab==='paste');
+  document.getElementById('panel-upload').classList.toggle('active', tab==='upload');
+  document.getElementById('errorMsg').style.display = 'none';
+}
 
 function loadExample() {
   document.getElementById('inputJson').value = JSON.stringify(EXAMPLE, null, 2);
 }
 
 document.getElementById('inputJson').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.ctrlKey) runAnalysis();
+  if (e.key === 'Enter' && e.ctrlKey) runFromPaste();
 });
 
-async function runAnalysis() {
-  const raw = document.getElementById('inputJson').value.trim();
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function onDragLeave()  { document.getElementById('dropZone').classList.remove('drag-over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
   const errEl = document.getElementById('errorMsg');
   errEl.style.display = 'none';
 
+  if (!file.name.endsWith('.json')) {
+    errEl.textContent = 'Only .json files are supported.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error('File must contain a JSON array');
+      for (let i = 0; i < parsed.length; i++) {
+        if (!parsed[i].id || !parsed[i].comment) throw new Error(`Item at index ${i} missing 'id' or 'comment'`);
+      }
+      uploadedPosts = parsed;
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileMeta').textContent = `${parsed.length} comment${parsed.length!==1?'s':''} · ${(file.size/1024).toFixed(1)} KB`;
+      document.getElementById('fileSelected').classList.add('visible');
+      document.getElementById('runBtn-upload').disabled = false;
+    } catch(err) {
+      errEl.textContent = 'Invalid file: ' + err.message;
+      errEl.style.display = 'block';
+      clearFile();
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearFile() {
+  uploadedPosts = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileSelected').classList.remove('visible');
+  document.getElementById('runBtn-upload').disabled = true;
+}
+
+async function runFromPaste() {
+  const raw = document.getElementById('inputJson').value.trim();
+  const errEl = document.getElementById('errorMsg');
+  errEl.style.display = 'none';
   let posts;
   try {
     posts = JSON.parse(raw);
@@ -165,16 +267,26 @@ async function runAnalysis() {
     errEl.style.display = 'block';
     return;
   }
+  await runAnalysis(posts, 'paste');
+}
 
-  const btn = document.getElementById('runBtn');
-  const spinner = document.getElementById('spinner');
+async function runFromFile() {
+  if (!uploadedPosts) return;
+  await runAnalysis(uploadedPosts, 'upload');
+}
+
+async function runAnalysis(posts, source) {
+  const errEl = document.getElementById('errorMsg');
+  const btn = document.getElementById(`runBtn-${source}`);
+  const spinner = document.getElementById(`spinner-${source}`);
   btn.disabled = true;
   spinner.style.display = 'block';
+  errEl.style.display = 'none';
 
   try {
     const res = await fetch('/analyze', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ posts })
     });
     const data = await res.json();
@@ -184,7 +296,7 @@ async function runAnalysis() {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
   } finally {
-    btn.disabled = false;
+    btn.disabled = source === 'upload' ? false : false;
     spinner.style.display = 'none';
   }
 }
@@ -193,69 +305,60 @@ function renderResults(data) {
   const { results, summary } = data;
   document.getElementById('resultsSection').classList.add('visible');
 
-  // Stats
   const aggrPct = Math.round((summary.aggressive_count / summary.total) * 100);
   document.getElementById('statsGrid').innerHTML = `
-    <div class="stat"><div class="stat-label">Total comments</div><div class="stat-val">${summary.total}</div></div>
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-val">${summary.total}</div></div>
     <div class="stat"><div class="stat-label">Aggressive</div><div class="stat-val" style="color:var(--anger)">${summary.aggressive_count}</div></div>
     <div class="stat"><div class="stat-label">Safe</div><div class="stat-val" style="color:var(--safe)">${summary.non_aggressive_count}</div></div>
     <div class="stat"><div class="stat-label">Aggression rate</div><div class="stat-val" style="color:${aggrPct>40?'var(--anger)':'var(--text)'}">${aggrPct}%</div></div>
   `;
 
-  // Emotion donut chart
   const dist = summary.emotion_distribution;
-  const emotionLabels = Object.keys(dist);
-  const emotionVals = emotionLabels.map(k => dist[k]);
-  const emotionColors = emotionLabels.map(k => COLORS[k] || '#888');
+  const eLabels = Object.keys(dist);
+  const eVals   = eLabels.map(k => dist[k]);
+  const eColors = eLabels.map(k => COLORS[k] || '#888');
 
   if (emotionChartInst) emotionChartInst.destroy();
   emotionChartInst = new Chart(document.getElementById('emotionChart'), {
     type: 'doughnut',
-    data: { labels: emotionLabels, datasets: [{ data: emotionVals, backgroundColor: emotionColors, borderWidth: 0, hoverOffset: 4 }] },
-    options: { responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
+    data: { labels: eLabels, datasets: [{ data: eVals, backgroundColor: eColors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false} } }
   });
-
-  const legendEl = document.getElementById('emotionLegend');
-  legendEl.innerHTML = emotionLabels.map((lbl,i) =>
-    `<span style="display:flex;align-items:center;gap:4px;">
-      <span style="width:9px;height:9px;border-radius:2px;background:${emotionColors[i]};flex-shrink:0;"></span>
-      ${lbl} ${emotionVals[i]}
-    </span>`
+  document.getElementById('emotionLegend').innerHTML = eLabels.map((l,i) =>
+    `<span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:${eColors[i]};flex-shrink:0;"></span>${l} ${eVals[i]}</span>`
   ).join('');
 
-  // Aggression bar chart
-  const aggrLabels = results.map(r => `#${r.id}`);
-  const aggrScores = results.map(r => r.aggression_score);
-  const aggrColors = results.map(r => r.aggression === 'yes' ? '#f05a5a' : '#5dcaa5');
-  const barHeight = Math.max(results.length * 40 + 60, 200);
-  document.getElementById('aggrChartWrap').style.height = barHeight + 'px';
-
+  const barH = Math.max(results.length * 40 + 60, 200);
+  document.getElementById('aggrChartWrap').style.height = barH + 'px';
   if (aggrChartInst) aggrChartInst.destroy();
   aggrChartInst = new Chart(document.getElementById('aggrChart'), {
     type: 'bar',
-    data: { labels: aggrLabels, datasets: [{ label: 'Aggression %', data: aggrScores, backgroundColor: aggrColors, borderRadius: 4, borderSkipped: false }] },
+    data: {
+      labels: results.map(r => `#${r.id}`),
+      datasets: [{ data: results.map(r => r.aggression_score), backgroundColor: results.map(r => r.aggression==='yes'?'#f05a5a':'#5dcaa5'), borderRadius:4, borderSkipped:false }]
+    },
     options: {
-      indexAxis: 'y', responsive:true, maintainAspectRatio:false,
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
       scales: {
-        x: { min:0, max:100, grid:{ color:'rgba(255,255,255,0.05)' }, ticks:{ color:'#6b6a78', font:{size:11}, callback: v => v+'%' } },
-        y: { grid:{ display:false }, ticks:{ color:'#8899aa', font:{family:'DM Mono, monospace', size:11} } }
+        x: { min:0, max:100, grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#6b6a78',font:{size:11},callback:v=>v+'%'} },
+        y: { grid:{display:false}, ticks:{color:'#8899aa',font:{family:'DM Mono, monospace',size:11}} }
       },
-      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.raw.toFixed(1)}% aggression` } } }
+      plugins:{ legend:{display:false} }
     }
   });
 
-  // Table
-  const tbody = document.getElementById('resultsBody');
-  tbody.innerHTML = results.map(r => `
+  document.getElementById('resultsBody').innerHTML = results.map(r => `
     <tr>
       <td class="id-cell">#${r.id}</td>
       <td class="comment-cell">${escHtml(r.comment)}</td>
-      <td style="white-space:nowrap;">${EMOJI[r.emotion] || ''} <span style="color:${COLORS[r.emotion]}">${r.emotion}</span></td>
+      <td style="white-space:nowrap;">${EMOJI[r.emotion]||''} <span style="color:${COLORS[r.emotion]}">${r.emotion}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--muted);">${r.emotion_score}%</td>
       <td style="font-family:'DM Mono',monospace;font-size:0.78rem;color:${r.aggression==='yes'?'var(--anger)':'var(--muted)'};">${r.aggression_score}%</td>
       <td><span class="badge ${r.aggression==='yes'?'badge-agg':'badge-safe'}">${r.aggression==='yes'?'aggressive':'safe'}</span></td>
     </tr>
   `).join('');
+
+  document.getElementById('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function escHtml(s) {
