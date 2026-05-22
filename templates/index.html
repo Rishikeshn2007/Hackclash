@@ -3,384 +3,264 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Emotion Detector</title>
+  <title>Comment Emotion Analyzer</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0a0a0f;
-      --surface: #13131a;
-      --border: rgba(255,255,255,0.07);
-      --text: #f0eee8;
-      --muted: #6b6a78;
-      --accent: #7c6af7;
-      --accent-dim: rgba(124,106,247,0.12);
-      --anger:   #f05a5a;
-      --disgust: #7ec87e;
-      --fear:    #b07ef5;
-      --joy:     #f5c842;
-      --neutral: #8899aa;
-      --sadness: #5ab4f0;
-      --surprise:#f09f5a;
+      --bg: #0a0a0f; --surface: #13131a; --border: rgba(255,255,255,0.07);
+      --text: #f0eee8; --muted: #6b6a78; --accent: #7c6af7;
+      --anger:#f05a5a; --disgust:#7ec87e; --fear:#b07ef5;
+      --joy:#f5c842; --neutral:#8899aa; --sadness:#5ab4f0; --surprise:#f09f5a;
+      --aggressive:#f05a5a; --safe:#5dcaa5;
     }
+    body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; padding:2.5rem 1.5rem; }
+    .wrap { max-width:860px; margin:0 auto; }
+    h1 { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; letter-spacing:-0.03em; margin-bottom:0.3rem; }
+    h1 span { color:var(--accent); }
+    .sub { font-family:'DM Mono',monospace; font-size:0.85rem; color:var(--muted); margin-bottom:2rem; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1.25rem; }
+    textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem; line-height:1.7; padding:1rem; resize:vertical; min-height:220px; outline:none; transition:border-color 0.2s; }
+    textarea:focus { border-color:var(--accent); }
+    textarea::placeholder { color:var(--muted); }
+    .row { display:flex; align-items:center; justify-content:space-between; margin-top:1rem; gap:1rem; flex-wrap:wrap; }
+    .hint { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); }
+    button { background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:'Syne',sans-serif; font-weight:600; font-size:0.88rem; padding:0.55rem 1.4rem; cursor:pointer; transition:opacity 0.2s, transform 0.1s; }
+    button:hover { opacity:0.85; }
+    button:active { transform:scale(0.97); }
+    button:disabled { opacity:0.35; cursor:not-allowed; }
+    .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
+    .btn-outline:hover { border-color:var(--accent); color:var(--accent); opacity:1; }
+    .error { font-family:'DM Mono',monospace; font-size:0.8rem; color:var(--anger); margin-top:0.5rem; display:none; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Syne', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 3rem 1.5rem;
-    }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:1.25rem; }
+    .stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+    .stat-label { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px; }
+    .stat-val { font-size:1.7rem; font-weight:800; letter-spacing:-0.02em; }
 
-    h1 {
-      font-size: clamp(2rem, 5vw, 3.2rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      text-align: center;
-      margin-bottom: 0.4rem;
-    }
-    h1 span { color: var(--accent); }
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem; }
+    @media(max-width:600px) { .charts-row { grid-template-columns:1fr; } }
+    .chart-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+    .chart-title { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:1rem; }
 
-    .subtitle {
-      font-size: 0.95rem;
-      color: var(--muted);
-      text-align: center;
-      margin-bottom: 2.5rem;
-      font-family: 'DM Mono', monospace;
-    }
+    .results-section { display:none; }
+    .results-section.visible { display:block; }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.75rem;
-      width: 100%;
-      max-width: 640px;
-    }
+    table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+    th { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; text-align:left; padding:6px 10px; border-bottom:1px solid var(--border); }
+    td { padding:10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+    tr:last-child td { border-bottom:none; }
+    .id-cell { font-family:'DM Mono',monospace; color:var(--muted); font-size:0.78rem; }
+    .comment-cell { color:var(--text); max-width:260px; line-height:1.5; }
+    .badge { display:inline-block; font-family:'DM Mono',monospace; font-size:0.72rem; padding:3px 9px; border-radius:99px; font-weight:500; }
+    .badge-agg { background:rgba(240,90,90,0.15); color:var(--anger); }
+    .badge-safe { background:rgba(93,202,165,0.15); color:var(--safe); }
 
-    textarea {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-      font-size: 0.92rem;
-      line-height: 1.6;
-      padding: 1rem;
-      resize: vertical;
-      min-height: 120px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    textarea:focus { border-color: var(--accent); }
-    textarea::placeholder { color: var(--muted); }
+    .spinner { display:none; width:16px; height:16px; border:2px solid rgba(255,255,255,0.15); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    .row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 1rem;
-      gap: 1rem;
-    }
-
-    .char-count {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
-
-    button {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 0.9rem;
-      padding: 0.6rem 1.5rem;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    button:hover { opacity: 0.88; }
-    button:active { transform: scale(0.97); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .result-card {
-      width: 100%;
-      max-width: 640px;
-      margin-top: 1.5rem;
-      display: none;
-    }
-    .result-card.visible { display: block; }
-
-    .top-emotion {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.5rem 1.75rem;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      margin-bottom: 1rem;
-    }
-
-    .emotion-emoji {
-      font-size: 3rem;
-      line-height: 1;
-    }
-
-    .emotion-label {
-      font-size: 1.9rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      text-transform: capitalize;
-    }
-
-    .emotion-score {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .bars-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.25rem 1.75rem;
-    }
-
-    .bars-title {
-      font-size: 0.72rem;
-      font-family: 'DM Mono', monospace;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 1.1rem;
-    }
-
-    .bar-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 0.7rem;
-    }
-
-    .bar-label {
-      font-size: 0.82rem;
-      font-family: 'DM Mono', monospace;
-      width: 70px;
-      text-transform: capitalize;
-      color: var(--text);
-      flex-shrink: 0;
-    }
-
-    .bar-track {
-      flex: 1;
-      height: 6px;
-      background: var(--border);
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: 99px;
-      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .bar-pct {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-      color: var(--muted);
-      width: 48px;
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    .spinner {
-      display: none;
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(255,255,255,0.2);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin-left: 8px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .error-msg {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.82rem;
-      color: var(--anger);
-      margin-top: 0.5rem;
-      display: none;
-    }
-
-    .examples {
-      margin-top: 0.9rem;
-    }
-    .examples-label {
-      font-size: 0.72rem;
-      color: var(--muted);
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.5rem;
-    }
-    .example-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    .pill {
-      background: var(--accent-dim);
-      border: 1px solid rgba(124,106,247,0.2);
-      border-radius: 99px;
-      color: #b4adff;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.75rem;
-      padding: 0.3rem 0.9rem;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .pill:hover { background: rgba(124,106,247,0.22); }
+    .section-head { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.75rem; }
   </style>
 </head>
 <body>
+<div class="wrap">
+  <h1>comment<span>.</span>lens</h1>
+  <p class="sub">bulk emotion + aggression analysis · j-hartmann/emotion-english-distilroberta-base</p>
 
-<h1>emotion<span>.</span>detect</h1>
-<p class="subtitle">j-hartmann/emotion-english-distilroberta-base · 7 classes</p>
-
-<div class="card">
-  <textarea id="inputText" placeholder="Type or paste any English text here…" maxlength="512"></textarea>
-  <div class="row">
-    <span class="char-count"><span id="charCount">0</span> / 512</span>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span class="error-msg" id="errorMsg">Error</span>
-      <div class="spinner" id="spinner"></div>
-      <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+  <div class="card">
+    <div class="section-head">input — paste json array of posts</div>
+    <textarea id="inputJson" placeholder='[
+  {"id": "1", "comment": "I love this product!"},
+  {"id": "2", "comment": "This is absolutely terrible"},
+  {"id": "3", "comment": "Okay I guess, nothing special"}
+]'></textarea>
+    <div class="row">
+      <span class="hint">ctrl+enter to run &nbsp;·&nbsp; array of {id, comment}</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn-outline" onclick="loadExample()">Load example</button>
+        <div class="spinner" id="spinner"></div>
+        <button id="runBtn" onclick="runAnalysis()">Analyze</button>
+      </div>
     </div>
+    <div class="error" id="errorMsg"></div>
   </div>
 
-  <div class="examples">
-    <div class="examples-label">try an example →</div>
-    <div class="example-pills">
-      <span class="pill" onclick="setExample(this)">I can't believe they did this to me!</span>
-      <span class="pill" onclick="setExample(this)">Today was the best day of my life 🎉</span>
-      <span class="pill" onclick="setExample(this)">I don't know what to feel anymore…</span>
-      <span class="pill" onclick="setExample(this)">That horror film actually scared me</span>
-      <span class="pill" onclick="setExample(this)">The report is on the desk.</span>
-    </div>
-  </div>
-</div>
+  <div class="results-section" id="resultsSection">
 
-<div class="result-card" id="resultCard">
-  <div class="top-emotion">
-    <div class="emotion-emoji" id="topEmoji"></div>
-    <div>
-      <div class="emotion-label" id="topLabel"></div>
-      <div class="emotion-score" id="topScore"></div>
-    </div>
-  </div>
+    <div class="stats-grid" id="statsGrid"></div>
 
-  <div class="bars-card">
-    <div class="bars-title">all emotion scores</div>
-    <div id="barsContainer"></div>
+    <div class="charts-row">
+      <div class="chart-box">
+        <div class="chart-title">emotion distribution</div>
+        <div style="position:relative;width:100%;height:220px;">
+          <canvas id="emotionChart" role="img" aria-label="Donut chart of emotion distribution across analyzed comments"></canvas>
+        </div>
+        <div id="emotionLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;"></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">aggression score per comment</div>
+        <div id="aggrChartWrap" style="position:relative;width:100%;">
+          <canvas id="aggrChart" role="img" aria-label="Horizontal bar chart showing aggression score for each comment"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">per-comment results</div>
+      <div style="overflow-x:auto;">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>ID</th><th>Comment</th><th>Emotion</th><th>Confidence</th><th>Aggression score</th><th>Flag</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
 const COLORS = {
-  anger: '#f05a5a', disgust: '#7ec87e', fear: '#b07ef5',
-  joy: '#f5c842', neutral: '#8899aa', sadness: '#5ab4f0', surprise: '#f09f5a'
+  anger:'#f05a5a', disgust:'#7ec87e', fear:'#b07ef5',
+  joy:'#f5c842', neutral:'#8899aa', sadness:'#5ab4f0', surprise:'#f09f5a'
 };
+const EMOJI = { anger:'😡',disgust:'🤢',fear:'😨',joy:'😄',neutral:'😐',sadness:'😢',surprise:'😲' };
+let emotionChartInst = null;
+let aggrChartInst = null;
 
-const EMOJI = {
-  anger:'😡', disgust:'🤢', fear:'😨', joy:'😄',
-  neutral:'😐', sadness:'😢', surprise:'😲'
-};
+const EXAMPLE = [
+  {"id":"1","comment":"I absolutely love this, it made my day!"},
+  {"id":"2","comment":"This is disgusting, I want a refund immediately"},
+  {"id":"3","comment":"I'm scared it might stop working suddenly"},
+  {"id":"4","comment":"The package arrived. It is on the table."},
+  {"id":"5","comment":"Wow, didn't expect that feature at all!"},
+  {"id":"6","comment":"I hate how they handled this, it's infuriating"},
+  {"id":"7","comment":"Feeling a bit sad about the discontinuation"},
+  {"id":"8","comment":"Best purchase I made this year, truly joyful"}
+];
 
-const textarea = document.getElementById('inputText');
-const charCount = document.getElementById('charCount');
-const spinner = document.getElementById('spinner');
-const errorMsg = document.getElementById('errorMsg');
-const btn = document.getElementById('analyzeBtn');
-
-textarea.addEventListener('input', () => {
-  charCount.textContent = textarea.value.length;
-});
-
-function setExample(el) {
-  textarea.value = el.textContent.trim();
-  charCount.textContent = textarea.value.length;
+function loadExample() {
+  document.getElementById('inputJson').value = JSON.stringify(EXAMPLE, null, 2);
 }
 
-async function analyze() {
-  const text = textarea.value.trim();
-  if (!text) return;
+document.getElementById('inputJson').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) runAnalysis();
+});
 
+async function runAnalysis() {
+  const raw = document.getElementById('inputJson').value.trim();
+  const errEl = document.getElementById('errorMsg');
+  errEl.style.display = 'none';
+
+  let posts;
+  try {
+    posts = JSON.parse(raw);
+    if (!Array.isArray(posts)) throw new Error('Must be a JSON array');
+  } catch(e) {
+    errEl.textContent = 'Invalid JSON: ' + e.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('runBtn');
+  const spinner = document.getElementById('spinner');
   btn.disabled = true;
   spinner.style.display = 'block';
-  errorMsg.style.display = 'none';
 
   try {
     const res = await fetch('/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ posts })
     });
-
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Server error');
-    renderResult(data);
-  } catch (err) {
-    errorMsg.textContent = err.message;
-    errorMsg.style.display = 'inline';
+    renderResults(data);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
     spinner.style.display = 'none';
   }
 }
 
-function renderResult(data) {
-  document.getElementById('topEmoji').textContent = data.emoji;
-  document.getElementById('topLabel').textContent = data.top_emotion;
-  document.getElementById('topLabel').style.color = COLORS[data.top_emotion] || '#fff';
-  document.getElementById('topScore').textContent = `confidence: ${data.top_score}%`;
+function renderResults(data) {
+  const { results, summary } = data;
+  document.getElementById('resultsSection').classList.add('visible');
 
-  const container = document.getElementById('barsContainer');
-  container.innerHTML = '';
+  // Stats
+  const aggrPct = Math.round((summary.aggressive_count / summary.total) * 100);
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat"><div class="stat-label">Total comments</div><div class="stat-val">${summary.total}</div></div>
+    <div class="stat"><div class="stat-label">Aggressive</div><div class="stat-val" style="color:var(--anger)">${summary.aggressive_count}</div></div>
+    <div class="stat"><div class="stat-label">Safe</div><div class="stat-val" style="color:var(--safe)">${summary.non_aggressive_count}</div></div>
+    <div class="stat"><div class="stat-label">Aggression rate</div><div class="stat-val" style="color:${aggrPct>40?'var(--anger)':'var(--text)'}">${aggrPct}%</div></div>
+  `;
 
-  data.all_scores.forEach(item => {
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.innerHTML = `
-      <span class="bar-label">${item.emoji} ${item.label}</span>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:0%;background:${COLORS[item.label]}"></div>
-      </div>
-      <span class="bar-pct">${item.score}%</span>
-    `;
-    container.appendChild(row);
-    setTimeout(() => {
-      row.querySelector('.bar-fill').style.width = item.score + '%';
-    }, 50);
+  // Emotion donut chart
+  const dist = summary.emotion_distribution;
+  const emotionLabels = Object.keys(dist);
+  const emotionVals = emotionLabels.map(k => dist[k]);
+  const emotionColors = emotionLabels.map(k => COLORS[k] || '#888');
+
+  if (emotionChartInst) emotionChartInst.destroy();
+  emotionChartInst = new Chart(document.getElementById('emotionChart'), {
+    type: 'doughnut',
+    data: { labels: emotionLabels, datasets: [{ data: emotionVals, backgroundColor: emotionColors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
   });
 
-  const card = document.getElementById('resultCard');
-  card.classList.add('visible');
+  const legendEl = document.getElementById('emotionLegend');
+  legendEl.innerHTML = emotionLabels.map((lbl,i) =>
+    `<span style="display:flex;align-items:center;gap:4px;">
+      <span style="width:9px;height:9px;border-radius:2px;background:${emotionColors[i]};flex-shrink:0;"></span>
+      ${lbl} ${emotionVals[i]}
+    </span>`
+  ).join('');
+
+  // Aggression bar chart
+  const aggrLabels = results.map(r => `#${r.id}`);
+  const aggrScores = results.map(r => r.aggression_score);
+  const aggrColors = results.map(r => r.aggression === 'yes' ? '#f05a5a' : '#5dcaa5');
+  const barHeight = Math.max(results.length * 40 + 60, 200);
+  document.getElementById('aggrChartWrap').style.height = barHeight + 'px';
+
+  if (aggrChartInst) aggrChartInst.destroy();
+  aggrChartInst = new Chart(document.getElementById('aggrChart'), {
+    type: 'bar',
+    data: { labels: aggrLabels, datasets: [{ label: 'Aggression %', data: aggrScores, backgroundColor: aggrColors, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive:true, maintainAspectRatio:false,
+      scales: {
+        x: { min:0, max:100, grid:{ color:'rgba(255,255,255,0.05)' }, ticks:{ color:'#6b6a78', font:{size:11}, callback: v => v+'%' } },
+        y: { grid:{ display:false }, ticks:{ color:'#8899aa', font:{family:'DM Mono, monospace', size:11} } }
+      },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.raw.toFixed(1)}% aggression` } } }
+    }
+  });
+
+  // Table
+  const tbody = document.getElementById('resultsBody');
+  tbody.innerHTML = results.map(r => `
+    <tr>
+      <td class="id-cell">#${r.id}</td>
+      <td class="comment-cell">${escHtml(r.comment)}</td>
+      <td style="white-space:nowrap;">${EMOJI[r.emotion] || ''} <span style="color:${COLORS[r.emotion]}">${r.emotion}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--muted);">${r.emotion_score}%</td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.78rem;color:${r.aggression==='yes'?'var(--anger)':'var(--muted)'};">${r.aggression_score}%</td>
+      <td><span class="badge ${r.aggression==='yes'?'badge-agg':'badge-safe'}">${r.aggression==='yes'?'aggressive':'safe'}</span></td>
+    </tr>
+  `).join('');
 }
 
-textarea.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.ctrlKey) analyze();
-});
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 </script>
-
 </body>
 </html>

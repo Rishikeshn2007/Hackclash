@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-from model import predict_emotions
+from model import analyze_batch
 
 app = Flask(__name__)
 
@@ -10,19 +10,24 @@ def index():
 @app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
-    text = data.get("text", "").strip()
 
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
+    if not data or "posts" not in data:
+        return jsonify({"error": "Send JSON with a 'posts' array"}), 400
 
-    if len(text) > 512:
-        return jsonify({"error": "Text too long (max 512 characters)"}), 400
+    posts = data["posts"]
+
+    if not isinstance(posts, list) or len(posts) == 0:
+        return jsonify({"error": "'posts' must be a non-empty array"}), 400
+
+    for i, post in enumerate(posts):
+        if "id" not in post or "comment" not in post:
+            return jsonify({"error": f"Post at index {i} missing 'id' or 'comment'"}), 400
 
     try:
-        result = predict_emotions(text)
+        result = analyze_batch(posts)
         return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500  # ← add this
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
